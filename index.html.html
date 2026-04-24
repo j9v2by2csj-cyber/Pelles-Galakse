@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GALAKSEN</title>
+
+<!-- PWA: legg til på hjem-skjermen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GALAKSEN">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05030f">
+
+<!-- App-ikon (inline SVG) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='38' fill='%2305030f'/%3E%3Ccircle cx='90' cy='88' r='68' fill='none' stroke='%23ffd93d' stroke-width='3' opacity='.25'/%3E%3Ccircle cx='90' cy='88' r='46' fill='none' stroke='%23ffd93d' stroke-width='2' opacity='.15'/%3E%3Ctext x='90' y='108' text-anchor='middle' font-size='74'%3E&#127756;%3C/text%3E%3Ctext x='90' y='155' text-anchor='middle' font-family='Arial Black' font-size='17' font-weight='900' fill='%23ffd93d' letter-spacing='1'%3EGALAKSEN%3C/text%3E%3C/svg%3E">
+
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#05030f;--bg2:#0c0825;--accent:#ffd93d;--green:#4ade80;--red:#f87171;--robot:#6ee7f7;--text:#f0eeff;--muted:#7770aa;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:'Nunito',sans-serif;color:var(--text);}
+
+
+/* Safe area for iPhone notch/home indicator */
+body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);}
+.screen{padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(80px,calc(env(safe-area-inset-bottom)+60px));}
+#robot-wrap{bottom:max(14px,calc(env(safe-area-inset-bottom)+8px));}
+
+/* STARFIELD */
+#sf{position:fixed;inset:0;pointer-events:none;z-index:0;}
+.st{position:absolute;background:#fff;border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite;}
+@keyframes tw{0%,100%{opacity:var(--a,.5)}50%{opacity:.05}}
+
+/* SCREENS */
+.screen{position:fixed;inset:0;z-index:10;display:none;flex-direction:column;align-items:center;overflow-y:auto;padding:20px 16px 80px;}
+.screen.active{display:flex;}
+#galaxy{overflow:hidden;padding:0;}
+
+/* GALAXY */
+#galaxy-canvas{position:relative;width:100%;height:100%;cursor:grab;}
+#galaxy-canvas:active{cursor:grabbing;}
+.gal-title{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-family:'Fredoka One',cursive;font-size:clamp(20px,4vw,30px);color:var(--accent);letter-spacing:.1em;text-shadow:0 0 30px #ffd93d55;white-space:nowrap;pointer-events:none;z-index:20;}
+.gal-hint{position:absolute;top:56px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted);letter-spacing:.1em;white-space:nowrap;pointer-events:none;z-index:20;}
+
+.pnode{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:15;user-select:none;transition:filter .2s;}
+.pnode-orb{border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:36px;transition:transform .18s,box-shadow .18s;}
+.pnode:hover .pnode-orb{transform:scale(1.18);}
+.pnode-label{margin-top:7px;font-family:'Fredoka One',cursive;font-size:13px;color:#fff;text-shadow:0 2px 8px #000c;text-align:center;max-width:90px;line-height:1.2;}
+.pnode.secret .pnode-orb{animation:flicker 5s ease-in-out infinite;}
+@keyframes flicker{0%,90%,100%{opacity:1}92%{opacity:.15}95%{opacity:1}98%{opacity:.4}}
+
+/* BACK */
+.back-btn{align-self:flex-start;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:7px 16px;font-size:12px;font-family:'Fredoka One',cursive;color:var(--muted);cursor:pointer;letter-spacing:.08em;transition:background .15s;margin-bottom:18px;flex-shrink:0;}
+.back-btn:hover{background:rgba(255,255,255,.14);color:var(--text);}
+
+/* PLANET HEADER */
+.ph{display:flex;align-items:center;gap:14px;margin-bottom:20px;width:100%;max-width:700px;flex-shrink:0;}
+.ph-icon{font-size:52px;filter:drop-shadow(0 4px 18px #0009);}
+.ph h2{font-family:'Fredoka One',cursive;font-size:clamp(16px,3vw,24px);color:var(--accent);letter-spacing:.07em;}
+.ph p{font-size:12px;color:var(--muted);margin-top:3px;}
+
+/* CARDS */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;width:100%;max-width:700px;margin-bottom:18px;}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;animation:fi .4s both;}
+.card h3{font-family:'Fredoka One',cursive;font-size:12px;color:var(--accent);letter-spacing:.1em;margin-bottom:7px;}
+.card p{font-size:13px;line-height:1.6;}
+@keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* BIG BTN */
+.big-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;font-family:'Fredoka One',cursive;font-size:15px;letter-spacing:.08em;border-radius:30px;cursor:pointer;transition:transform .12s,background .14s;}
+.big-btn:hover{transform:scale(1.05);}
+.btn-yellow{border:2px solid var(--accent);background:rgba(255,217,61,.12);color:var(--accent);}
+.btn-green{border:2px solid var(--green);background:rgba(74,222,128,.12);color:var(--green);}
+.btn-red{border:2px solid var(--red);background:rgba(248,113,113,.12);color:var(--red);}
+.btn-robot{border:2px solid var(--robot);background:rgba(110,231,247,.1);color:var(--robot);}
+
+/* QUIZ */
+.quiz-wrap{width:100%;max-width:700px;}
+.qz-box{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px;margin-bottom:12px;animation:fi .3s both;}
+.qz-q{font-family:'Fredoka One',cursive;font-size:15px;margin-bottom:12px;line-height:1.4;}
+.qz-opts{display:flex;flex-direction:column;gap:8px;}
+.qz-opt{padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);font-size:13px;font-weight:700;color:var(--text);cursor:pointer;text-align:left;transition:background .1s;}
+.qz-opt:hover:not(:disabled){background:rgba(255,255,255,.1);}
+.qz-opt.correct{background:rgba(74,222,128,.2);border-color:#4ade80;color:#a7f3c8;}
+.qz-opt.wrong{background:rgba(248,113,113,.2);border-color:#f87171;color:#fecaca;}
+#quiz-result{margin-top:14px;font-family:'Fredoka One',cursive;font-size:17px;text-align:center;padding:14px;border-radius:12px;background:rgba(255,217,61,.1);border:1px solid rgba(255,217,61,.2);color:var(--accent);}
+
+/* ── SPACE PLANET ── */
+#space-system{position:relative;width:100%;max-width:700px;height:300px;background:rgba(0,0,20,.6);border-radius:18px;border:1px solid rgba(255,255,255,.07);overflow:hidden;margin-bottom:16px;cursor:pointer;}
+.sun{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:52px;height:52px;background:radial-gradient(circle,#ffe066,#ff9900);border-radius:50%;box-shadow:0 0 40px #ff990088,0 0 80px #ff990033;z-index:5;}
+.orbit{position:absolute;left:50%;top:50%;border:1px solid rgba(255,255,255,.08);border-radius:50%;transform:translate(-50%,-50%);}
+.planet-dot{position:absolute;border-radius:50%;cursor:pointer;z-index:6;transition:transform .15s;}
+.planet-dot:hover{transform:scale(1.5);}
+.planet-tooltip{position:absolute;background:rgba(5,3,15,.95);border:1px solid rgba(255,217,61,.3);border-radius:10px;padding:10px 13px;font-size:12px;line-height:1.5;max-width:180px;z-index:20;pointer-events:none;display:none;}
+.planet-tooltip.show{display:block;}
+.planet-tooltip strong{font-family:'Fredoka One',cursive;font-size:13px;color:var(--accent);display:block;margin-bottom:4px;}
+
+/* ── FOOTBALL PLANET ── */
+#football-game{width:100%;max-width:700px;}
+.field{position:relative;width:100%;height:200px;background:linear-gradient(180deg,#1a6b1a 0%,#1d7d1d 50%,#1a6b1a 100%);border-radius:14px;border:2px solid rgba(255,255,255,.1);overflow:hidden;margin-bottom:14px;cursor:crosshair;}
+.field-lines{position:absolute;inset:0;pointer-events:none;}
+.goal{position:absolute;right:0;top:50%;transform:translateY(-50%);width:18px;height:80px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);border-right:none;}
+.ball{position:absolute;width:28px;height:28px;background:radial-gradient(circle at 35% 35%,#fff,#ccc);border-radius:50%;font-size:18px;display:flex;align-items:center;justify-content:center;transition:left .05s,top .05s;z-index:5;pointer-events:none;}
+.goalkeeper{position:absolute;right:22px;font-size:26px;transition:top .25s ease;z-index:4;pointer-events:none;}
+.kick-btn{display:block;margin:0 auto 10px;}
+.shot-result{text-align:center;font-family:'Fredoka One',cursive;font-size:20px;min-height:30px;letter-spacing:.05em;}
+.shot-result.goal{color:var(--green);}
+.shot-result.save{color:var(--red);}
+.fb-score{text-align:center;font-size:13px;color:var(--muted);margin-bottom:12px;font-family:'Fredoka One',cursive;}
+
+/* ── POKEMON PLANET ── */
+#poke-game{width:100%;max-width:700px;}
+.silhouette-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;background:rgba(255,255,255,.04);border-radius:16px;padding:20px;margin-bottom:14px;}
+.poke-sil{font-size:90px;filter:brightness(0);transition:filter .6s;user-select:none;}
+.poke-sil.revealed{filter:brightness(1);}
+.poke-hint{font-size:12px;color:var(--muted);font-family:'Fredoka One',cursive;letter-spacing:.08em;}
+.poke-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+.poke-opt{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);font-family:'Fredoka One',cursive;font-size:14px;color:var(--text);cursor:pointer;transition:background .1s;}
+.poke-opt:hover:not(:disabled){background:rgba(255,255,255,.12);}
+.poke-opt.correct{background:rgba(74,222,128,.2);border-color:#4ade80;color:#a7f3c8;}
+.poke-opt.wrong{background:rgba(248,113,113,.2);border-color:#f87171;color:#fecaca;}
+.poke-fb{text-align:center;font-family:'Fredoka One',cursive;font-size:16px;min-height:24px;margin-top:6px;}
+.poke-score{text-align:center;font-size:12px;color:var(--muted);font-family:'Fredoka One',cursive;margin-bottom:12px;}
+
+/* ── ANIMAL PLANET ── */
+#animal-game{width:100%;max-width:700px;}
+.animal-card-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px;}
+.animal-card{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:14px;padding:14px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.animal-card:hover{border-color:rgba(255,217,61,.4);background:rgba(255,217,61,.06);}
+.animal-card.matched{border-color:#4ade80;background:rgba(74,222,128,.1);cursor:default;}
+.animal-card.wrong-pick{border-color:#f87171;animation:shake .3s;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.animal-emoji{font-size:38px;display:block;margin-bottom:8px;}
+.animal-name{font-family:'Fredoka One',cursive;font-size:13px;color:var(--accent);}
+.fact-bubble{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px;margin-bottom:12px;font-size:13px;line-height:1.6;animation:fi .3s both;}
+.fact-bubble strong{color:var(--accent);font-family:'Fredoka One',cursive;}
+
+/* ── READING ── */
+#reading-screen{background:var(--bg2);}
+.read-card{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;width:100%;max-width:700px;margin-bottom:14px;animation:fi .4s both;}
+.read-sentence{font-size:20px;font-weight:800;line-height:1.6;color:#fff;margin-bottom:14px;}
+.read-sentence span{display:inline-block;padding:2px 4px;border-radius:4px;cursor:pointer;transition:background .15s;}
+.read-sentence span:hover{background:rgba(255,217,61,.2);}
+.read-sentence span.lit{background:rgba(255,217,61,.35);color:var(--accent);}
+.read-q{font-size:13px;color:var(--muted);margin-bottom:10px;font-weight:700;}
+.read-opts{display:flex;flex-wrap:wrap;gap:8px;}
+.read-opt{padding:8px 18px;border-radius:20px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-size:13px;font-weight:700;cursor:pointer;color:var(--text);transition:background .12s;}
+.read-opt:hover:not(:disabled){background:rgba(255,255,255,.12);}
+.read-opt.correct{background:rgba(74,222,128,.2);border-color:#4ade80;color:#a7f3c8;}
+.read-opt.wrong{background:rgba(248,113,113,.2);border-color:#f87171;color:#fecaca;}
+.read-fb{font-size:13px;font-weight:700;margin-top:10px;min-height:20px;}
+.read-fb.ok{color:#80ffaa;}
+.read-fb.no{color:#ff9090;}
+
+/* ── MATH PLANET ── */
+#math-screen{background:var(--bg2);}
+.math-box{width:100%;max-width:700px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px 20px;margin-bottom:14px;}
+.math-q{font-size:46px;font-weight:900;text-align:center;color:var(--accent);margin-bottom:22px;}
+.math-opts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+.math-opt{width:76px;height:76px;border-radius:16px;border:2px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);font-size:26px;font-weight:800;color:var(--text);cursor:pointer;transition:transform .12s,background .12s;}
+.math-opt:hover{transform:scale(1.08);background:rgba(255,255,255,.12);}
+.math-opt.correct{background:rgba(74,222,128,.25);border-color:#4ade80;color:#a7f3c8;}
+.math-opt.wrong{background:rgba(248,113,113,.25);border-color:#f87171;color:#fecaca;}
+.math-fb{text-align:center;font-size:16px;font-weight:800;height:24px;margin-top:10px;}
+.math-fb.ok{color:#80ffaa;}
+.math-fb.no{color:#ff9090;}
+.math-streak{text-align:center;font-family:'Fredoka One',cursive;font-size:13px;color:var(--muted);margin-top:6px;}
+
+/* ── SNAKE GAME ── */
+#game-screen{background:#04080f;align-items:center;}
+#snake-outer{display:flex;flex-direction:column;align-items:center;width:100%;max-width:400px;margin-top:8px;}
+.snake-hud{display:flex;justify-content:space-between;align-items:center;width:100%;padding:8px 14px;background:rgba(255,255,255,.05);border-radius:10px;margin-bottom:10px;}
+.snake-hud span{font-family:'Fredoka One',cursive;font-size:13px;color:var(--accent);}
+#sn-timer{color:var(--robot)!important;}
+#snake-canvas{border-radius:12px;border:2px solid rgba(100,255,180,.2);background:#050f08;display:block;touch-action:none;}
+.sn-msg{font-family:'Fredoka One',cursive;font-size:17px;color:var(--accent);text-align:center;margin:12px 0 4px;letter-spacing:.06em;}
+.sn-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:10px;}
+.dpad{display:grid;grid-template-columns:repeat(3,50px);grid-template-rows:repeat(3,50px);gap:4px;margin-top:14px;}
+.dp{border-radius:10px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:background .1s;}
+.dp:active,.dp.pressed{background:rgba(255,255,255,.2);}
+
+/* ── CHALLENGE OVERLAY ── */
+#challenge-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(2,1,10,.92);backdrop-filter:blur(6px);}
+#challenge-overlay.show{display:flex;}
+.challenge-box{background:#0d0b28;border:2px solid rgba(255,217,61,.3);border-radius:22px;padding:30px 24px;max-width:420px;width:90%;text-align:center;animation:pop .3s both;}
+@keyframes pop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+.challenge-title{font-family:'Fredoka One',cursive;font-size:20px;color:var(--accent);letter-spacing:.1em;margin-bottom:6px;}
+.challenge-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.ch-progress{display:flex;gap:8px;justify-content:center;margin-bottom:20px;}
+.ch-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.15);background:transparent;transition:background .3s;}
+.ch-dot.done{background:var(--green);border-color:var(--green);}
+.ch-dot.active{border-color:var(--accent);}
+.ch-q{font-size:36px;font-weight:900;color:var(--accent);margin-bottom:18px;font-family:'Fredoka One',cursive;}
+.ch-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.ch-opt{padding:14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);font-size:22px;font-weight:800;color:var(--text);cursor:pointer;transition:background .1s;}
+.ch-opt:hover{background:rgba(255,255,255,.1);}
+.ch-opt.correct{background:rgba(74,222,128,.25);border-color:#4ade80;color:#a7f3c8;}
+.ch-opt.wrong{background:rgba(248,113,113,.25);border-color:#f87171;color:#fecaca;}
+.ch-fb{font-family:'Fredoka One',cursive;font-size:16px;min-height:24px;margin-bottom:10px;}
+.ch-fb.ok{color:#80ffaa;}
+.ch-fb.no{color:#ff9090;}
+/* spelling */
+.spell-word{font-size:30px;font-weight:900;color:var(--accent);letter-spacing:.15em;margin-bottom:6px;font-family:'Fredoka One',cursive;}
+.spell-hint{font-size:13px;color:var(--muted);margin-bottom:14px;}
+.spell-input{width:100%;padding:12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);font-size:22px;font-weight:800;text-align:center;color:var(--text);font-family:'Fredoka One',cursive;letter-spacing:.1em;outline:none;margin-bottom:10px;text-transform:uppercase;}
+.spell-input:focus{border-color:rgba(255,217,61,.5);}
+
+/* ROBOT */
+#robot-wrap{position:fixed;bottom:14px;right:14px;z-index:300;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;}
+#robot-bubble{background:rgba(8,6,30,.96);border:1.5px solid var(--robot);border-radius:14px 14px 4px 14px;padding:10px 14px;max-width:200px;font-size:12px;line-height:1.5;color:var(--text);display:none;animation:pop .2s both;pointer-events:auto;}
+#robot-bubble.show{display:block;}
+#rbot{width:50px;height:50px;pointer-events:auto;cursor:pointer;filter:drop-shadow(0 2px 8px #6ee7f766);}
+#rbot svg{width:100%;height:100%;}
+</style>
+</head>
+<body>
+<div id="sf"></div>
+
+<!-- GALAXY -->
+<div class="screen active" id="galaxy">
+  <div id="galaxy-canvas">
+    <div class="gal-title">✦ GALAKSEN ✦</div>
+    <div class="gal-hint">DRAR FOR Å UTFORSKE — KLIKK PÅ EN PLANET!</div>
+  </div>
+</div>
+
+<!-- SPACE PLANET -->
+<div class="screen" id="space-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">🪐</span><div><h2>ROMMET</h2><p>KLIKK PÅ PLANETENE FOR Å LÆRE OM DEM!</p></div></div>
+  <div id="space-system">
+    <div class="sun" title="SOLEN"></div>
+    <div class="planet-tooltip" id="space-tooltip"></div>
+  </div>
+  <div class="card-grid" id="space-extra"></div>
+  <button class="big-btn btn-yellow" style="margin-bottom:20px" onclick="showSpaceQuiz()">🎯 TA ROMQUIZ!</button>
+  <div class="quiz-wrap" id="space-quiz"></div>
+</div>
+
+<!-- FOOTBALL PLANET -->
+<div class="screen" id="football-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">⚽</span><div><h2>FOTBALL</h2><p>PRØV Å SCORE MÅL — OG LÆR OM FOTBALL!</p></div></div>
+  <div id="football-game">
+    <div class="field" id="field" onclick="kickBall(event)">
+      <svg class="field-lines" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="50" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,.15)" stroke-width=".4"/><circle cx="50" cy="50" r="15" fill="none" stroke="rgba(255,255,255,.15)" stroke-width=".4"/><rect x="0" y="30" width="8" height="40" fill="none" stroke="rgba(255,255,255,.15)" stroke-width=".4"/></svg>
+      <div class="goal"></div>
+      <div class="ball" id="ball">⚽</div>
+      <div class="goalkeeper" id="gk">🧤</div>
+    </div>
+    <div class="shot-result" id="shot-result"></div>
+    <div class="fb-score" id="fb-score">MÅL: 0 | REDDET: 0</div>
+    <div class="card-grid" id="football-facts"></div>
+    <button class="big-btn btn-yellow" style="margin:0 auto 20px;display:flex" onclick="showFootballQuiz()">🎯 TA FOTBALLQUIZ!</button>
+    <div class="quiz-wrap" id="football-quiz"></div>
+  </div>
+</div>
+
+<!-- POKEMON PLANET -->
+<div class="screen" id="pokemon-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">⚡</span><div><h2>POKÉMON</h2><p>GJETT HVEM DETTE POKÉMON ER!</p></div></div>
+  <div id="poke-game">
+    <div class="silhouette-wrap">
+      <div class="poke-sil" id="poke-sil"></div>
+      <div class="poke-hint" id="poke-hint">HVEM ER DETTE?</div>
+    </div>
+    <div class="poke-opts" id="poke-opts"></div>
+    <div class="poke-fb" id="poke-fb"></div>
+    <div class="poke-score" id="poke-score">RIKTIGE: 0</div>
+    <div class="card-grid" id="poke-facts" style="margin-top:14px"></div>
+    <button class="big-btn btn-yellow" style="margin:10px auto 20px;display:flex" onclick="showPokeQuiz()">🎯 TA POKÉMON-QUIZ!</button>
+    <div class="quiz-wrap" id="poke-quiz"></div>
+  </div>
+</div>
+
+<!-- ANIMAL PLANET -->
+<div class="screen" id="animal-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">🦁</span><div><h2>DYRENES VERDEN</h2><p>MATCH DYRET MED RIKTIG SUPERFAKT!</p></div></div>
+  <div id="animal-game">
+    <div class="fact-bubble" id="current-fact-bubble" style="display:none"></div>
+    <div class="animal-card-wrap" id="animal-cards"></div>
+    <div class="fb-score" id="animal-score" style="margin-bottom:14px"></div>
+    <div class="card-grid" id="animal-facts" style="margin-top:6px"></div>
+    <button class="big-btn btn-yellow" style="margin:10px auto 20px;display:flex" onclick="showAnimalQuiz()">🎯 TA DYREKVIZ!</button>
+    <div class="quiz-wrap" id="animal-quiz"></div>
+  </div>
+</div>
+
+<!-- READING PLANET -->
+<div class="screen" id="reading-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">📚</span><div><h2>ORD-PLANETEN</h2><p>LES OG SVAR — KLIKK PÅ ORD FOR Å MARKERE!</p></div></div>
+  <div id="reading-cards"></div>
+</div>
+
+<!-- MATH PLANET -->
+<div class="screen" id="math-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div class="ph"><span class="ph-icon">🔢</span><div><h2>TALL-PLANETEN</h2><p>PLUSS OG MINUS — TALL FRA 0 TIL 20!</p></div></div>
+  <div class="math-box">
+    <div class="math-q" id="math-q"></div>
+    <div class="math-opts" id="math-opts"></div>
+    <div class="math-fb" id="math-fb"></div>
+    <div class="math-streak" id="math-streak"></div>
+  </div>
+  <div class="card-grid" id="math-facts"></div>
+</div>
+
+<!-- SNAKE GAME -->
+<div class="screen" id="game-screen">
+  <button class="back-btn" onclick="showGalaxy()">← GALAKSEN</button>
+  <div id="snake-outer">
+    <div style="font-family:'Fredoka One',cursive;font-size:10px;color:var(--robot);letter-spacing:.14em;margin-bottom:12px;text-align:center;">🎉 HEMMELIG PLANET — SLANGESPILL! 🎉</div>
+    <div class="snake-hud">
+      <span>POENG: <span id="sn-score">0</span></span>
+      <span id="sn-timer">TID: 5:00</span>
+      <span>REKORD: <span id="sn-best">0</span></span>
+    </div>
+    <canvas id="snake-canvas" width="340" height="340"></canvas>
+    <div class="sn-msg" id="sn-msg">KLAR TIL Å SPILLE? 🐍</div>
+    <div class="sn-sub" id="sn-sub">BRUK PILTASTENE ELLER KNAPPENE UNDER</div>
+    <button class="big-btn btn-green" id="sn-start" onclick="snStart()">START 🐍</button>
+    <div class="dpad">
+      <div></div><div class="dp" ontouchstart="snDir(0,-1)" onclick="snDir(0,-1)">▲</div><div></div>
+      <div class="dp" ontouchstart="snDir(-1,0)" onclick="snDir(-1,0)">◀</div>
+      <div class="dp" style="background:rgba(100,255,180,.06);border-color:rgba(100,255,180,.2);">●</div>
+      <div class="dp" ontouchstart="snDir(1,0)" onclick="snDir(1,0)">▶</div>
+      <div></div><div class="dp" ontouchstart="snDir(0,1)" onclick="snDir(0,1)">▼</div><div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGE OVERLAY -->
+<div id="challenge-overlay">
+  <div class="challenge-box">
+    <div class="challenge-title" id="ch-title">LØS OPPGAVENE!</div>
+    <div class="challenge-sub" id="ch-sub">FÅ 5 RIKTIGE FOR Å LÅSE OPP SPILLET</div>
+    <div class="ch-progress" id="ch-progress"></div>
+    <div id="ch-content"></div>
+  </div>
+</div>
+
+<!-- ROBOT -->
+<div id="robot-wrap">
+  <div id="robot-bubble"></div>
+  <div id="rbot" onclick="robotTap()">
+    <svg viewBox="0 0 52 52" fill="none">
+      <rect x="10" y="16" width="32" height="25" rx="8" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+      <rect x="18" y="22" width="6" height="6" rx="2" fill="#6ee7f7" opacity=".9"/>
+      <rect x="28" y="22" width="6" height="6" rx="2" fill="#6ee7f7" opacity=".9"/>
+      <rect x="20" y="31" width="12" height="3" rx="1.5" fill="#6ee7f7" opacity=".5"/>
+      <rect x="22" y="6" width="8" height="10" rx="4" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+      <circle cx="26" cy="7" r="2" fill="#ffd93d"/>
+      <rect x="2" y="20" width="8" height="13" rx="4" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+      <rect x="42" y="20" width="8" height="13" rx="4" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+      <rect x="16" y="41" width="8" height="8" rx="4" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+      <rect x="28" y="41" width="8" height="8" rx="4" fill="#0f2744" stroke="#6ee7f7" stroke-width="1.4"/>
+    </svg>
+  </div>
+</div>
+
+<script>
+// ══ STARFIELD ══
+(()=>{const sf=document.getElementById('sf');for(let i=0;i<130;i++){const s=document.createElement('div');s.className='st';const sz=Math.random()*2.4+.3;s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--a:${.1+Math.random()*.8};--d:${2+Math.random()*6}s;animation-delay:${Math.random()*6}s`;sf.appendChild(s);}})();
+
+// ══ ROBOT ══
+const COSMO_LINES={galaxy:['HEI! JEG ER COSMO! KLIKK PÅ EN PLANET FOR Å UTFORSKE! 🚀','PSST… ÉN PLANET ER HEMMELIG. HVEM FINNER DEN FØRST? 👀','DRAR FOR Å SE HELE GALAKSEN!','UNIVERSET ER SÅ STORT AT VI IKKE KAN TELLE ALLE STJERNENE!'],space:['ROMMET ER UENDELIG! VI HAR BARE SETT EN BITTELITEN DEL 🔭','KLIKK PÅ PLANETENE I SOLSYSTEMET FOR Å LÆRE OM DEM!'],football:['ERLING HAALAND ER EN AV VERDENS BESTE — OG HAN ER NORSK! ⚽','KLIKK PÅ BANEN FOR Å SIKTE OG SKYTE!'],pokemon:['JEG ER SELV LITT SOM ET POKÉMON — ROBOT-TYPE! 🤖⚡','GJETT RIKTIG POKÉMON FRA SILHUETTEN!'],animal:['DYR ER SÅ UTROLIGE! NOEN LEVER 500 ÅR!','MATCH DYRET MED RIKTIG SUPERFAKT!'],reading:['LES SETNINGENE HØYT — DET HJELPER! 📖','KLIKK PÅ ORD FOR Å MARKERE DEM!'],math:['PLUSS OG MINUS — DU KAN DET! 💪','TALL ER OVERALT: I MUSIKK, SPORT OG ROM!'],game:['SPIS MATEN OG UNNGÅ VEGGENE! 🐍','JO MER DU SPISER, JO RASKERE BLI DU!']};
+let rIdx={};
+function robotSay(msg,ctx){
+  const b=document.getElementById('robot-bubble');
+  if(!msg&&ctx){const arr=COSMO_LINES[ctx]||[];const i=(rIdx[ctx]||0)%arr.length;msg=arr[i];rIdx[ctx]=(i+1);}
+  if(!msg)return;
+  b.textContent=msg;b.classList.add('show');
+  clearTimeout(robotSay._t);robotSay._t=setTimeout(()=>b.classList.remove('show'),5500);
+}
+function robotTap(){const cur=document.querySelector('.screen.active');const id=cur?cur.id.replace('-screen',''):'galaxy';robotSay(null,id==='game'?'game':id);}
+
+// ══ SCREENS ══
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById(id).scrollTop=0;
+}
+function showGalaxy(){
+  snStop();
+  showScreen('galaxy');
+  setTimeout(()=>robotSay(null,'galaxy'),700);
+}
+
+// ══ GALAXY MAP ══
+const PLANET_DATA=[
+  {id:'space',emoji:'🪐',name:'ROMMET',color:'#818cf8',size:72},
+  {id:'football',emoji:'⚽',name:'FOTBALL',color:'#22c55e',size:66},
+  {id:'pokemon',emoji:'⚡',name:'POKÉMON',color:'#f59e0b',size:64},
+  {id:'animal',emoji:'🦁',name:'DYR',color:'#84cc16',size:68},
+  {id:'reading',emoji:'📚',name:'LESING',color:'#a78bfa',size:60},
+  {id:'math',emoji:'🔢',name:'MATTE',color:'#38bdf8',size:62},
+  {id:'secret',emoji:'✨',name:'???',color:'#555',size:46,secret:true},
+];
+// Fractions of usable area — kept well inside safe zone so all 7 are visible on iPhone
+// Layout: ring of 6 around center-ish, secret tucked in bottom-right corner but still visible
+const POS_FRACS=[
+  {fx:.50,fy:.33}, // ROMMET  — top centre
+  {fx:.22,fy:.52}, // FOTBALL — mid left
+  {fx:.78,fy:.52}, // POKÉMON — mid right
+  {fx:.28,fy:.75}, // DYR     — lower left
+  {fx:.72,fy:.75}, // LESING  — lower right
+  {fx:.50,fy:.62}, // MATTE   — centre
+  {fx:.84,fy:.88}, // SECRET  — corner, still on screen
+];
+let camX=0,camY=0,dragging=false,dsx=0,dsy=0,csx=0,csy=0,didDrag=false;
+let pNodes=[];
+
+function buildGalaxy(){
+  const cv=document.getElementById('galaxy-canvas');
+  cv.innerHTML='<div class="gal-title">✦ GALAKSEN ✦</div><div class="gal-hint">TRYKK PÅ EN PLANET FOR Å UTFORSKE!</div>';
+  camX=0;camY=0;
+  pNodes=[];
+  const W=window.innerWidth,H=window.innerHeight;
+  // Scale planet orbs down aggressively on narrow screens
+  const scale=Math.min(W/390,1);
+  // Usable height: subtract ~80px for title bar + ~60px bottom robot
+  const UH=H-80;
+  PLANET_DATA.forEach((p,i)=>{
+    const frac=POS_FRACS[i];
+    // x: clamp 10%–90%, y: start from 80px header, clamp to UH-50
+    const bx=frac.fx*W;
+    const by=80+frac.fy*UH;
+    const sz=Math.round((p.size||64)*scale);
+    const labelSize=Math.max(9,11*scale);
+    const div=document.createElement('div');div.className='pnode'+(p.secret?' secret':'');
+    div.style.left=bx+'px';div.style.top=by+'px';
+    div.innerHTML=`<div class="pnode-orb" style="width:${sz}px;height:${sz}px;font-size:${sz*.48}px;background:${p.secret?'#111':p.color+'1a'};border:2px solid ${p.secret?'rgba(255,255,255,.06)':p.color+'66'};box-shadow:0 0 ${sz*.55}px ${p.color}33;">${p.emoji}</div><div class="pnode-label" style="font-size:${labelSize}px">${p.name}</div>`;
+    div.addEventListener('pointerup',()=>{if(!didDrag)openPlanet(p);});
+    cv.appendChild(div);
+    // Float amplitude also scaled down on mobile so planets don't drift off edge
+    pNodes.push({el:div,bx,by,ph:Math.random()*Math.PI*2,sp:.28+Math.random()*.3,amp:(3+Math.random()*5)*scale});
+  });
+  cv.addEventListener('pointerdown',e=>{dragging=true;didDrag=false;dsx=e.clientX;dsy=e.clientY;csx=camX;csy=camY;});
+  cv.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-dsx,dy=e.clientY-dsy;if(Math.abs(dx)+Math.abs(dy)>5)didDrag=true;camX=csx+dx;camY=csy+dy;});
+  cv.addEventListener('pointerup',()=>dragging=false);
+  animGalaxy();
+}
+function animGalaxy(){
+  const t=performance.now()/1000;
+  pNodes.forEach(n=>{
+    n.el.style.left=(n.bx+camX+Math.sin(t*n.sp+n.ph)*n.amp)+'px';
+    n.el.style.top=(n.by+camY+Math.cos(t*n.sp*1.3+n.ph)*n.amp*.6)+'px';
+  });
+  requestAnimationFrame(animGalaxy);
+}
+
+function openPlanet(p){
+  if(p.secret){openSecretPlanet();return;}
+  const map={space:initSpace,football:initFootball,pokemon:initPokemon,animal:initAnimal,reading:initReading,math:initMath};
+  if(map[p.id]){map[p.id]();showScreen(p.id+'-screen');setTimeout(()=>robotSay(null,p.id),700);}
+}
+
+// ══ QUIZ HELPER ══
+function buildQuiz(questions,containerId,cosmoMsg){
+  const c=document.getElementById(containerId);
+  let score=0,answered=0;
+  c.innerHTML=questions.map((q,qi)=>`
+    <div class="qz-box" style="animation-delay:${qi*.08}s">
+      <div class="qz-q">${qi+1}. ${q.q}</div>
+      <div class="qz-opts" id="qo-${containerId}-${qi}">
+        ${q.opts.map((o,oi)=>`<button class="qz-opt" data-qi="${qi}" data-oi="${oi}" data-ans="${q.ans}">${o}</button>`).join('')}
+      </div>
+    </div>`).join('')+'<div id="qr-'+containerId+'" style="display:none" class="qz-result"></div>';
+  c.querySelectorAll('.qz-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const qi=+btn.dataset.qi,oi=+btn.dataset.oi,ans=+btn.dataset.ans;
+      const wrap=document.getElementById(`qo-${containerId}-${qi}`);
+      if(wrap.querySelector('.correct'))return;
+      [...wrap.children].forEach((b,i)=>{b.disabled=true;if(i===ans)b.classList.add('correct');else if(+b.dataset.oi===oi)b.classList.add('wrong');});
+      if(oi===ans)score++;
+      answered++;
+      if(answered===questions.length){
+        const r=document.getElementById('qr-'+containerId);r.style.display='block';
+        r.textContent=score===questions.length?`🏆 PERFEKT! ${score}/${questions.length} — DU ER EKSPERT!`:score>=questions.length/2?`⭐ BRA! ${score}/${questions.length} RIKTIGE!`:`💪 ${score}/${questions.length} — LES FAKTA IGJEN OG PRØV PÅ NYTT!`;
+        robotSay(cosmoMsg||'BRA JOBBET!');
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// 🪐 SPACE PLANET
+// ══════════════════════════════════════
+const SOLAR=[
+  {name:'MERKUR',emoji:'🟤',r:60,size:10,color:'#a0a0a0',speed:4.7,fact:'MERKUR ER NÆRMEST SOLEN, MEN IKKE VARMEST! OM NATTEN ER DET -180 GRADER DER — UTEN ATMOSFÆRE HOLDER INGENTING PÅ VARMEN.'},
+  {name:'VENUS',emoji:'🟡',r:90,size:14,color:'#e8c56a',speed:3.5,fact:'VENUS ER VARMEST I SOLSYSTEMET MED 465 GRADER! DET ER VARMT NOK TIL Å SMELTE BLY. EN DAG PÅ VENUS ER LENGRE ENN ET ÅR DER!'},
+  {name:'JORDA',emoji:'🔵',r:125,size:15,color:'#4a9eff',speed:2.9,fact:'JORDA ER DEN ENESTE PLANETEN VI VET HAR LIV! 71% AV OVERFLATEN ER DEKKET AV VANN. SETT FRA ROMMET SER DEN BLÅLILLA UT.'},
+  {name:'MARS',emoji:'🔴',r:160,size:12,color:'#c1440e',speed:2.4,fact:'MARS HAR DET HØYESTE FJELLET I SOLSYSTEMET — OLYMPUS MONS! DET ER 3 GANGER HØYERE ENN MOUNT EVEREST. KANSKJE VI BOR DER EN DAG?'},
+  {name:'JUPITER',emoji:'🟠',r:210,size:26,color:'#c88b3a',speed:1.3,fact:'JUPITER ER SÅ STOR AT ALLE DE ANDRE PLANETENE FÅR PLASS INNI DEN! DEN HAR EN STORM SOM HAR VART I 350 ÅR — KALT DEN STORE RØDE FLEKKEN.'},
+  {name:'SATURN',emoji:'🪐',r:260,size:22,color:'#e4d191',speed:.9,fact:'SATURN ER SÅ LETT AT DEN VILLE FLYTE PÅ VANN! RINGENE ER LAGET AV IS-BITER SÅ STORE SOM EN BUS, ELLER SÅ SMÅ SOM EN SANDKORN.'},
+];
+let spaceAngles=[];
+function initSpace(){
+  spaceAngles=SOLAR.map(()=>Math.random()*Math.PI*2);
+  document.getElementById('space-extra').innerHTML=`
+    <div class="card"><h3>🌟 MELKEVEIEN</h3><p>SOLSYSTEMET VÅRT ER BARE ETT AV 200-400 MILLIARDER SOLSYSTEMER I MELKEVEIEN! OG DET FINNES ENDA FLERE GALAKSER — OMTRENT 2 BILLIONER AV DEM!</p></div>
+    <div class="card"><h3>🌌 SVART HULL</h3><p>I MIDTEN AV MELKEVEIEN LIGGER ET GIGANTISK SVART HULL — SAGITTARIUS A*! DET ER 4 MILLIONER GANGER TYNGRE ENN SOLEN OG SUGER ALT INN SOM KOMMER FOR NÆRT.</p></div>`;
+  document.getElementById('space-quiz').innerHTML='';
+  document.getElementById('space-quiz').querySelector && null;
+  drawSolarSystem();
+}
+function drawSolarSystem(){
+  const sys=document.getElementById('space-system');
+  const W=sys.offsetWidth||700,H=300,cx=W/2,cy=H/2;
+  // Remove old svg orbits
+  sys.querySelectorAll('.orbit,.planet-dot').forEach(e=>e.remove());
+  SOLAR.forEach((p,i)=>{
+    const scale=Math.min(W/700,1);
+    const r=p.r*scale*.85;
+    const orb=document.createElement('div');
+    orb.className='orbit';orb.style.cssText=`width:${r*2}px;height:${r*2}px;`;
+    sys.appendChild(orb);
+    const dot=document.createElement('div');
+    dot.className='planet-dot';dot.textContent=p.emoji;
+    dot.style.cssText=`width:${p.size}px;height:${p.size}px;font-size:${p.size*.9}px;line-height:1;`;
+    dot.title=p.name;
+    const angle=spaceAngles[i];
+    dot.style.left=(cx+Math.cos(angle)*r-p.size/2)+'px';
+    dot.style.top=(cy+Math.sin(angle)*r-p.size/2)+'px';
+    dot.addEventListener('click',e=>{e.stopPropagation();showSpaceTooltip(p,dot);});
+    sys.appendChild(dot);
+  });
+  animSolar();
+}
+let solarAF;
+function animSolar(){
+  cancelAnimationFrame(solarAF);
+  const sys=document.getElementById('space-system');
+  if(!sys)return;
+  const W=sys.offsetWidth||700,H=300,cx=W/2,cy=H/2;
+  const dots=sys.querySelectorAll('.planet-dot');
+  const t=performance.now()/1000;
+  dots.forEach((dot,i)=>{
+    const p=SOLAR[i];const scale=Math.min(W/700,1);const r=p.r*scale*.85;
+    const angle=t*p.speed*.08+spaceAngles[i];
+    dot.style.left=(cx+Math.cos(angle)*r-p.size/2)+'px';
+    dot.style.top=(cy+Math.sin(angle)*r-p.size/2)+'px';
+  });
+  solarAF=requestAnimationFrame(animSolar);
+}
+function showSpaceTooltip(p,dot){
+  const tip=document.getElementById('space-tooltip');
+  tip.innerHTML=`<strong>${p.emoji} ${p.name}</strong>${p.fact}`;
+  tip.classList.add('show');
+  const r=dot.getBoundingClientRect(),sr=document.getElementById('space-system').getBoundingClientRect();
+  let left=r.left-sr.left,top=r.top-sr.top+24;
+  if(left+190>sr.width)left=sr.width-195;
+  if(left<5)left=5;
+  if(top+120>sr.height)top=r.top-sr.top-120;
+  tip.style.left=left+'px';tip.style.top=top+'px';
+  clearTimeout(showSpaceTooltip._t);showSpaceTooltip._t=setTimeout(()=>tip.classList.remove('show'),4000);
+  robotSay(`${p.emoji} ${p.name}: ${p.fact.substring(0,60)}...`);
+}
+document.getElementById('space-system').addEventListener('click',()=>document.getElementById('space-tooltip').classList.remove('show'));
+function showSpaceQuiz(){
+  document.querySelector('#space-screen .big-btn').style.display='none';
+  buildQuiz([
+    {q:'HVILKEN PLANET HAR EN STORM SOM HAR VART I 350 ÅR?',opts:['SATURN','MARS','JUPITER','NEPTUN'],ans:2},
+    {q:'HVILKEN PLANET KAN FLYTE PÅ VANN?',opts:['JORDA','SATURN','MARS','VENUS'],ans:1},
+    {q:'HVOR MANGE GANGER HØYERE ER OLYMPUS MONS ENN MOUNT EVEREST?',opts:['2 GANGER','3 GANGER','10 GANGER','LIKE HØYT'],ans:1},
+    {q:'HVA LIGGER I MIDTEN AV MELKEVEIEN?',opts:['EN STOR STJERNE','ET SVART HULL','SOLEN','INGENTING'],ans:1},
+  ],'space-quiz','ROMEKSPERT! GODT JOBBET! 🚀');
+}
+
+// ══════════════════════════════════════
+// ⚽ FOOTBALL PLANET
+// ══════════════════════════════════════
+const FB_FACTS=[
+  {title:'🎯 BALLEN HAR 32 LAPPER',body:'EN FOTBALL ER SYDD SAMMEN AV 32 LAPPER — 20 HVITE SEKSKANTER OG 12 SVARTE FEMKANTER. UTEN DET MØNSTERET VILLE BALLEN IKKE VÆRT RUND NOK TIL Å SPRETTE LIKT OVERALT!'},
+  {title:'👟 ERLING HAALAND',body:'ERLING ER FRA BRYNE I NORWAY OG SCORER MÅL PÅ LØPENDE BÅND! I SIN FØRSTE SESONG FOR MANCHESTER CITY SCORET HAN 52 MÅL — DET ER NESTEN ETT MÅL PER KAMP! HAN LØPER CA. 34 KM/T.'},
+  {title:'🏆 BRASIL ER BEST',body:'BRASIL HAR VUNNET VM HELE 5 GANGER — INGEN SLÅR DEM! DE SPILLER MED GUL DRAKT OG GRØNNE SHORTS. DET SIES AT BRASILIANERE LÆRER Å SPARKE BALL FØR DE LÆRER Å GÅ!'},
+  {title:'🧤 KEEPEREN',body:'KEEPEREN ER DEN ENESTE PÅ BANEN SOM HAR LOV Å BRUKE HENDENE! KEEPERHANSKER HAR SPESIALGUMMI SOM KLISTRER TIL BALLEN. EN KEEPER GJØR CA. 5-6 REDNINGER PER KAMP I TOPPSERIE.'},
+];
+let fbGoals=0,fbSaves=0,fbShooting=false;
+function initFootball(){
+  fbGoals=0;fbSaves=0;fbShooting=false;
+  document.getElementById('shot-result').textContent='KLIKK PÅ BANEN FOR Å SIKTE OG SKYTE! 👆';
+  document.getElementById('shot-result').className='shot-result';
+  document.getElementById('fb-score').textContent='MÅL: 0 | REDDET: 0';
+  document.getElementById('football-facts').innerHTML=FB_FACTS.map((f,i)=>`<div class="card" style="animation-delay:${i*.07}s"><h3>${f.title}</h3><p>${f.body}</p></div>`).join('');
+  document.getElementById('football-quiz').innerHTML='';
+  const qb=document.querySelector('#football-screen .big-btn');if(qb)qb.style.display='flex';
+  resetBall();
+}
+function resetBall(){
+  const ball=document.getElementById('ball');
+  ball.style.transition='none';ball.style.left='48%';ball.style.top='70%';
+  fbShooting=false;
+}
+function kickBall(e){
+  if(fbShooting)return;fbShooting=true;
+  const field=document.getElementById('field');
+  const rect=field.getBoundingClientRect();
+  const tx=((e.clientX-rect.left)/rect.width*100);
+  const aimY=10+Math.random()*60;
+  const ball=document.getElementById('ball');
+  ball.style.transition='left .55s cubic-bezier(.2,.8,.3,1),top .55s cubic-bezier(.2,.8,.3,1)';
+  ball.style.left=(tx-1.5)+'%';ball.style.top=aimY+'%';
+  // GK movement
+  const gk=document.getElementById('gk');
+  const gkY=20+Math.random()*55;
+  gk.style.top=gkY+'%';
+  setTimeout(()=>{
+    // Goal if tx>82 and keeper missed
+    const goalHeight=30,goalY=35;// % approximate
+    const scored=tx>84&&!(Math.abs(aimY-gkY)<18);
+    const sr=document.getElementById('shot-result');
+    if(scored){fbGoals++;sr.textContent='⚽ MÅL! FANTASTISK SKUDD!';sr.className='shot-result goal';robotSay('MÅL! DU ER EN NATURTALENT! ⚽');}
+    else{fbSaves++;sr.textContent='🧤 REDDET — PRØV IGJEN!';sr.className='shot-result save';}
+    document.getElementById('fb-score').textContent=`MÅL: ${fbGoals} | REDDET: ${fbSaves}`;
+    setTimeout(resetBall,1200);
+  },600);
+}
+function showFootballQuiz(){
+  document.querySelector('#football-screen .big-btn').style.display='none';
+  buildQuiz([
+    {q:'HVOR MANGE LAPPER ER EN FOTBALL LAGET AV?',opts:['16','24','32','40'],ans:2},
+    {q:'HVEM SCORET 52 MÅL FOR MANCHESTER CITY PÅ ÉN SESONG?',opts:['MESSI','RONALDO','HAALAND','MBAPPÉ'],ans:2},
+    {q:'HVOR MANGE GANGER HAR BRASIL VUNNET VM?',opts:['3','4','5','6'],ans:2},
+    {q:'HVEM ER DEN ENESTE SOM HAR LOV Å BRUKE HENDENE?',opts:['ANGRIPEREN','BACKEN','KEEPEREN','KAPTEINEN'],ans:2},
+  ],'football-quiz','FOTBALLEKSPERT! KEEPER-KVALITET! ⚽');
+}
+
+// ══════════════════════════════════════
+// ⚡ POKEMON PLANET
+// ══════════════════════════════════════
+const POKE_LIST=[
+  {name:'PIKACHU',emoji:'⚡',hint:'JEG ER GUL OG ELSKER ELEKTRISITET!',opts:['BULBASAUR','PIKACHU','SQUIRTLE','JIGGLYPUFF'],ans:1,fact:'PIKACHU KAN PRODUSERE 100 000 VOLT — NOK TIL Å SLUKKE LYSET I EN HEL BY!'},
+  {name:'CHARMANDER',emoji:'🔥',hint:'JEG HAR ILD I HALEN — BOKSTAVELIG TALT!',opts:['CHARMANDER','GEODUDE','DIGLETT','MEOWTH'],ans:0,fact:'HVIS FLAMMEN PÅ HALEN TIL CHARMANDER SLUKKES, DØR DEN! HELDIGVIS SLUKKER DEN IKKE I REGN.'},
+  {name:'SQUIRTLE',emoji:'💧',hint:'JEG BOR I ET SKALL OG ELSKER VANN!',opts:['MAGIKARP','PSYDUCK','SQUIRTLE','SLOWPOKE'],ans:2,fact:'SQUIRTLE KAN SPRØYTE VANN MED SÅ MYKJE KRAFT AT DET KAN SLUKKE SKOGBRANNER!'},
+  {name:'GENGAR',emoji:'👻',hint:'JEG ER ET SPØKELSE OG LIKER Å SKREMME!',opts:['HAUNTER','GASTLY','MISDREAVUS','GENGAR'],ans:3,fact:'GENGAR SKJULER SEG I SKYGGER OG SENKER TEMPERATUREN I ROMMET MED 10 GRADER NÅR DEN ER NÆRME!'},
+  {name:'SNORLAX',emoji:'😴',hint:'JEG SOVER NESTEN HELE TIDA OG ER KJEMPESTOR!',opts:['SNORLAX','MUNCHLAX','SLOWBRO','WIGGLYTUFF'],ans:0,fact:'SNORLAX SPISER 400 KG MAT HVER DAG FØR DEN SOVER. NÅR DEN LIGGER PÅ VEIEN MÅ MAN BRUKE FLUTE FOR Å VEKKE DEN!'},
+];
+let pokeIdx=0,pokeScore=0,pokeAnswered=false;
+const POKE_FACTS=[
+  {title:'🎮 POKÉMON-VERDENEN',body:'DET FINNES OVER 1000 FORSKJELLIGE POKÉMON NÅ! DE 151 FØRSTE FRA KANTO-REGIONEN ER KLASSIKERNE. HVER GENERASJON LEGGER TIL NYE POKÉMON MED SPENNENDE KREFTER.'},
+  {title:'🥚 POKÉMON-EGG',body:'POKÉMON KLEKKES FRA EGG! I SPILLET MÅ DU GÅ MANGE SKRITT FOR AT EGGET SKAL KLEKKES — LITT SOM I VIRKELIGHETEN. SJELDNE POKÉMON HAR VANSKELIGERE EGG Å KLEKKE.'},
+];
+function initPokemon(){
+  pokeIdx=0;pokeScore=0;pokeAnswered=false;
+  document.getElementById('poke-facts').innerHTML=POKE_FACTS.map((f,i)=>`<div class="card" style="animation-delay:${i*.08}s"><h3>${f.title}</h3><p>${f.body}</p></div>`).join('');
+  document.getElementById('poke-quiz').innerHTML='';
+  const qb=document.querySelector('#pokemon-screen .big-btn');if(qb)qb.style.display='flex';
+  showPoke();
+}
+function showPoke(){
+  if(pokeIdx>=POKE_LIST.length){
+    document.getElementById('poke-sil').textContent='🏆';
+    document.getElementById('poke-hint').textContent=`DU GJETTET ${pokeScore} AV ${POKE_LIST.length}! POKÉMON-MESTER!`;
+    document.getElementById('poke-opts').innerHTML=`<button class="big-btn btn-yellow" style="grid-column:1/-1;justify-self:center" onclick="initPokemon()">PRØV IGJEN 🔄</button>`;
+    document.getElementById('poke-fb').textContent='';
+    robotSay('POKÉMON-MESTER! DU ER UTROLIG GOD! ⚡');return;
+  }
+  pokeAnswered=false;
+  const p=POKE_LIST[pokeIdx];
+  document.getElementById('poke-sil').textContent=p.emoji;
+  document.getElementById('poke-sil').className='poke-sil';
+  document.getElementById('poke-hint').textContent=p.hint;
+  document.getElementById('poke-fb').textContent='';
+  document.getElementById('poke-score').textContent=`RIKTIGE: ${pokeScore} | SPØRSMÅL: ${pokeIdx+1}/${POKE_LIST.length}`;
+  document.getElementById('poke-opts').innerHTML=p.opts.map((o,i)=>
+    `<button class="poke-opt" data-i="${i}">${o}</button>`).join('');
+  document.querySelectorAll('.poke-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(pokeAnswered)return;pokeAnswered=true;
+      const i=+btn.dataset.i;const correct=p.ans;
+      document.querySelectorAll('.poke-opt').forEach((b,bi)=>{b.disabled=true;if(bi===correct)b.classList.add('correct');else if(b===btn)b.classList.add('wrong');});
+      document.getElementById('poke-sil').classList.add('revealed');
+      if(i===correct){pokeScore++;document.getElementById('poke-fb').textContent=`⭐ RIKTIG! ${p.fact}`;robotSay('RIKTIG! '+p.fact.substring(0,50)+'...');}
+      else{document.getElementById('poke-fb').textContent=`❌ DET VAR ${p.name}! ${p.fact}`;}
+      setTimeout(()=>{pokeIdx++;showPoke();},2500);
+    });
+  });
+}
+function showPokeQuiz(){
+  document.querySelector('#pokemon-screen .big-btn').style.display='none';
+  buildQuiz([
+    {q:'HVEM SKAPTE POKÉMON?',opts:['PIKACHU','SATOSHI TAJIRI','NINTENDO','MISTY'],ans:1},
+    {q:'HVA SKJER HVIS FLAMMEN TIL CHARMANDER SLUKKES?',opts:['DEN SOVER','DEN BLI STERKERE','DEN DØR','DEN EVOLVERER'],ans:2},
+    {q:'HVOR MYE MAT SPISER SNORLAX HVER DAG?',opts:['10 KG','100 KG','400 KG','1000 KG'],ans:2},
+    {q:'HVA MÅ DU GJØRE FOR AT ET POKÉMON-EGG SKAL KLEKKES?',opts:['VENTE I RO','GÅ MANGE SKRITT','BADE DET','VARME DET'],ans:1},
+  ],'poke-quiz','POKÉDEX KOMPLETT! MESTERLIG! ⚡');
+}
+
+// ══════════════════════════════════════
+// 🦁 ANIMAL PLANET
+// ══════════════════════════════════════
+const ANIMALS=[
+  {emoji:'🐋',name:'BLÅHVALEN',fact:'BLÅHVALEN HAR ET HJERTE SÅ STORT SOM EN LITEN BIL! HJERTET VEIER 180 KG OG BANKER BARE 8 GANGER I MINUTTET — DU KAN HØRE DET FRA 3 KM UNNA!'},
+  {emoji:'🦑',name:'BLEKKSPRUTEN',fact:'BLEKKSPRUTER HAR TRE HJERTER OG BLÅ BLOD! DE KAN FORANDRE FARGE PÅ UNDER ET HALVT SEKUND FOR Å GJEMME SEG — SELV OM DE ER FARGEBLINDE!'},
+  {emoji:'🐜',name:'MAUREN',fact:'MAUREN KAN LØFTE 50 GANGER SIN KROPPSVEKT! HADDE DU HATT SAMME STYRKE KUNNE DU LØFTET EN LASTEBIL MED ÉN ARM. MAUR-KOLONIER HAR OPPTIL 300 MILLIONER MAUR!'},
+  {emoji:'🐬',name:'DELFINEN',fact:'DELFINER SOVER MED ETT ØYE ÅPENT! HALVPARTEN AV HJERNEN HVILER MENS DEN ANDRE HALVDELEN HOLDER SEG VÅKEN FOR Å PUSTE OG PASSE PÅ FARE.'},
+  {emoji:'🦒',name:'GIRAFFEN',fact:'GIRAFFEN HAR AKKURAT LIKE MANGE NAKKEVIRVLER SOM MENNESKER — 7 STYKKER! MEN HVER VIRVELS ER OPPTIL 28 CM LANG. DEN DRIKKER VED Å BØYE BEINA I EN AKTIG SPAGAT!'},
+];
+let animalRound=0,animalMatched=[];
+function initAnimal(){
+  animalRound=0;animalMatched=[];
+  document.getElementById('animal-facts').innerHTML='';
+  document.getElementById('animal-quiz').innerHTML='';
+  const qb=document.querySelector('#animal-screen .big-btn');if(qb)qb.style.display='flex';
+  nextAnimalRound();
+}
+function nextAnimalRound(){
+  if(animalRound>=ANIMALS.length){
+    document.getElementById('current-fact-bubble').style.display='block';
+    document.getElementById('current-fact-bubble').innerHTML='<strong>🏆 DU MATCHET ALLE DYRA! DU ER EN DYREEKSPERT!</strong>';
+    document.getElementById('animal-cards').innerHTML=`<button class="big-btn btn-yellow" style="grid-column:1/-1" onclick="initAnimal()">PRØV IGJEN 🔄</button>`;
+    document.getElementById('animal-score').textContent='';
+    robotSay('ALLE DYR MATCHET! DYREVOKTER-LISENS OPPTJENT! 🦁');return;
+  }
+  const correct=ANIMALS[animalRound];
+  // Pick 3 wrong animals
+  const others=ANIMALS.filter((_,i)=>i!==animalRound).sort(()=>Math.random()-.5).slice(0,3);
+  const opts=[correct,...others].sort(()=>Math.random()-.5);
+  document.getElementById('current-fact-bubble').style.display='block';
+  document.getElementById('current-fact-bubble').innerHTML=`<strong>🔍 SPØRSMÅL ${animalRound+1}/${ANIMALS.length}:</strong><br>${correct.fact.split('!')[0]}!<br><em style="color:var(--muted);font-size:12px">HVILKET DYR HANDLER DETTE OM?</em>`;
+  document.getElementById('animal-score').textContent=`RIKTIGE: ${animalRound}`;
+  document.getElementById('animal-cards').innerHTML=opts.map(a=>
+    `<div class="animal-card" data-name="${a.name}"><span class="animal-emoji">${a.emoji}</span><div class="animal-name">${a.name}</div></div>`).join('');
+  document.querySelectorAll('.animal-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      if(card.classList.contains('matched'))return;
+      if(card.dataset.name===correct.name){
+        card.classList.add('matched');
+        document.getElementById('current-fact-bubble').innerHTML=`<strong>✅ RIKTIG! ${correct.emoji} ${correct.name}</strong><br>${correct.fact}`;
+        robotSay('RIKTIG! '+correct.fact.substring(0,55)+'...');
+        setTimeout(()=>{animalRound++;nextAnimalRound();},2200);
+      } else {
+        card.classList.add('wrong-pick');setTimeout(()=>card.classList.remove('wrong-pick'),400);
+      }
+    });
+  });
+}
+function showAnimalQuiz(){
+  document.querySelector('#animal-screen .big-btn').style.display='none';
+  buildQuiz([
+    {q:'HVOR STORT ER HJERTET TIL BLÅHVALEN?',opts:['SOM EN BASKETBALL','SOM EN LITEN BIL','SOM ET HUS','SOM ET EPLE'],ans:1},
+    {q:'HVORFOR SOVER DELFINER MED ETT ØYE ÅPENT?',opts:['DE ER REDDE','FOR Å SE DRØMMENE BEDRE','FOR Å HUSKE Å PUSTE','DE SOVER IKKE'],ans:2},
+    {q:'HVOR MANGE GANGER SIN KROPPSVEKT KAN EN MAUR LØFTE?',opts:['2','10','50','100'],ans:2},
+    {q:'HVOR MANGE NAKKEVIRVLER HAR GIRAFFEN?',opts:['14','10','7','20'],ans:2},
+  ],'animal-quiz','DYREEKSPERT! SAFARI-GUIDE NIVÅ! 🦁');
+}
+
+// ══════════════════════════════════════
+// 📚 READING PLANET
+// ══════════════════════════════════════
+const READINGS=[
+  {s:'LYKKEN TIL LILLE LARS LAG PÅ ET STORT GRØNT GRESSKAR.',q:'HVOR LAG LYKKEN TIL LARS?',opts:['PÅ EN REGNBUE','PÅ ET GRØNT GRESSKAR','I EN BLÅ SKO','PÅ ET GUL BORD'],ans:1,ok:'SUPER LESING! 🌟',no:'LES EN GANG TIL — SVARET ER DER!'},
+  {s:'STORE SNILLE SMURFENE SYNGER OG DANSER HVER SØNDAG.',q:'HVA GJØR SMURFENE HVER SØNDAG?',opts:['SPISER PIZZA','SOVER LENGE','SYNGER OG DANSER','SPILLER FOTBALL'],ans:2,ok:'FLOTT! DU LESER KJEMPEFINT! 🎉',no:'PRØV IGJEN — SVARET ER I SETNINGEN!'},
+  {s:'DEN LILLE RØDE BILEN KJØRTE FORT FORBI TRE HØYE TRÆR.',q:'HVORDAN SÅ BILEN UT?',opts:['STOR OG BLÅ','LITEN OG RØD','GUL OG RUND','GRØNN OG GAMMEL'],ans:1,ok:'BRA JOBBET! 🚗',no:'SE ETTER FARGEN OG STØRRELSEN!'},
+  {s:'KAPTEIN KARIUS FANT EN GYLLEN SKATT UNDER EN GAMMEL EIK.',q:'HVOR FANT KAPTEIN KARIUS SKATTEN?',opts:['I HAVET','PÅ ET TAK','UNDER EN GAMMEL EIK','INNE I EN GROTTE'],ans:2,ok:'SKATTEJEGER! PERFEKT LESING! 💰',no:'HVILKEN PLASS NEVNES I SETNINGEN?'},
+  {s:'PINGVINEN PEDRO PLEIER Å SPISE FEM FROSNE FISKER TIL FROKOST.',q:'HVOR MANGE FISKER SPISER PEDRO?',opts:['TO','TRE','FEM','TI'],ans:2,ok:'STRÅLENDE! 🐧',no:'SE ETTER TALLET I SETNINGEN!'},
+  {s:'NISSER MED NISSEHATTER HOPPER GLEDELIG OPP OG NED I SNØEN.',q:'HVA HAR NISSENE PÅ HODET?',opts:['CAPS','HJELM','NISSEHATTER','INGENTING'],ans:2,ok:'HO HO HO! RIKTIG! 🎅',no:'SE HVA DE HAR PÅ HODET!'},
+];
+function initReading(){
+  document.getElementById('reading-cards').innerHTML=READINGS.map((r,ri)=>{
+    const words=r.s.split(' ').map((w,wi)=>`<span data-ri="${ri}" data-wi="${wi}">${w}</span>`).join(' ');
+    return `<div class="read-card" style="animation-delay:${ri*.07}s">
+      <div class="read-sentence" id="rs-${ri}">${words}</div>
+      <div class="read-q">❓ ${r.q}</div>
+      <div class="read-opts" id="ro-${ri}">${r.opts.map((o,oi)=>`<button class="read-opt" data-ri="${ri}" data-oi="${oi}" data-ans="${r.ans}">${o}</button>`).join('')}</div>
+      <div class="read-fb" id="rfb-${ri}"></div>
+    </div>`;
+  }).join('');
+  // Word highlight
+  document.querySelectorAll('.read-sentence span').forEach(s=>{
+    s.addEventListener('click',()=>s.classList.toggle('lit'));
+  });
+  // Answer
+  document.querySelectorAll('.read-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const ri=+btn.dataset.ri,oi=+btn.dataset.oi,ans=+btn.dataset.ans;
+      const wrap=document.getElementById(`ro-${ri}`);
+      if(wrap.querySelector('.correct'))return;
+      [...wrap.children].forEach((b,i)=>{b.disabled=true;if(i===ans)b.classList.add('correct');else if(+b.dataset.oi===oi)b.classList.add('wrong');});
+      const fb=document.getElementById(`rfb-${ri}`);
+      fb.textContent=oi===ans?READINGS[ri].ok:READINGS[ri].no;
+      fb.className='read-fb '+(oi===ans?'ok':'no');
+      if(oi===ans)robotSay(READINGS[ri].ok);
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// 🔢 MATH PLANET
+// ══════════════════════════════════════
+let mathScore=0,mathCorrect=0,mathAnswered=false,curMath=null;
+const MATH_FACTS=[
+  {title:'🔢 TALLINJEN',body:'ALLE TALL FRA 0 TIL 20 HAR SIN PLASS PÅ TALLINJEN! PLUSS BETYR AT DU HOPPER FREMOVER, MINUS BETYR AT DU HOPPER BAKOVER. PRØV Å TEGNE DIN EIGEN TALLINJE!'},
+  {title:'🧮 HJERNETRIM',body:'TENK PÅ ET TALL. LEGG TIL 5. TREKK FRA 3. LEGG TIL 1. SVARET ER ALLTID 3 MER ENN TALLET DU BEGYNTE MED! ER DET MAGI ELLER MATTE? (TIPS: DET ER MATTE!)'},
+];
+function initMath(){
+  mathScore=0;mathCorrect=0;mathAnswered=false;
+  document.getElementById('math-facts').innerHTML=MATH_FACTS.map((f,i)=>`<div class="card" style="animation-delay:${i*.08}s"><h3>${f.title}</h3><p>${f.body}</p></div>`).join('');
+  newMath();
+}
+function genMathQ(){
+  const isPlus=Math.random()>.45;
+  let a,b,ans;
+  if(isPlus){a=Math.floor(Math.random()*14);b=Math.floor(Math.random()*(20-a));ans=a+b;}
+  else{a=Math.floor(Math.random()*14)+5;b=Math.floor(Math.random()*(a+1));ans=a-b;}
+  return{q:`${a} ${isPlus?'+':'-'} ${b} = ?`,ans};
+}
+function newMath(){
+  mathAnswered=false;curMath=genMathQ();
+  document.getElementById('math-q').textContent=curMath.q;
+  document.getElementById('math-fb').textContent='';document.getElementById('math-fb').className='math-fb';
+  document.getElementById('math-streak').textContent=`POENG: ${mathScore} | RIKTIGE: ${mathCorrect}`;
+  const correct=curMath.ans;const opts=new Set([correct]);
+  while(opts.size<4){const v=correct+Math.floor(Math.random()*7)-3;if(v>=0&&v<=20&&v!==correct)opts.add(v);}
+  document.getElementById('math-opts').innerHTML=[...opts].sort(()=>Math.random()-.5).map(v=>
+    `<button class="math-opt" data-v="${v}">${v}</button>`).join('');
+  document.querySelectorAll('.math-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(mathAnswered)return;mathAnswered=true;
+      const v=+btn.dataset.v;
+      if(v===curMath.ans){btn.classList.add('correct');document.getElementById('math-fb').textContent='⭐ RIKTIG!';document.getElementById('math-fb').className='math-fb ok';mathScore+=10;mathCorrect++;robotSay('RIKTIG! DU ER EN MATTEGENI! 🔢');}
+      else{btn.classList.add('wrong');document.querySelectorAll('.math-opt').forEach(b=>{if(+b.dataset.v===curMath.ans)b.classList.add('correct');});document.getElementById('math-fb').textContent=`❌ SVARET VAR ${curMath.ans}`;document.getElementById('math-fb').className='math-fb no';}
+      document.getElementById('math-streak').textContent=`POENG: ${mathScore} | RIKTIGE: ${mathCorrect}`;
+      setTimeout(newMath,1400);
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// 🔐 CHALLENGE SYSTEM (unlock + timer)
+// ══════════════════════════════════════
+const SPELL_WORDS=[
+  {word:'KATT',hint:'ET DYR SOM MJAUER 🐱'},
+  {word:'HUND',hint:'ET DYR SOM BJEFFER 🐶'},
+  {word:'BIL',hint:'DU KJØRER I DEN 🚗'},
+  {word:'BOK',hint:'DU LESER DEN 📖'},
+  {word:'SOL',hint:'DEN SKINNER PÅ HIMMELEN ☀️'},
+  {word:'BALL',hint:'DU SPARKER DEN ⚽'},
+  {word:'FISK',hint:'DEN SVØMMER I HAVET 🐟'},
+  {word:'SNØBALL',hint:'DU KASTER DEN OM VINTEREN ❄️'},
+  {word:'REGNBUE',hint:'DEN KOM ETTER REGN 🌈'},
+  {word:'STJERNE',hint:'DEN LYSER PÅ NATTEHIMMELEN ⭐'},
+];
+
+let ch={active:false,mode:'',correct:0,needed:5,answered:false,type:'unlock',challengeType:'math'};
+let snakeUnlocked=false;
+let gameTimer=null,gameSecondsLeft=300;
+let nextChallengeType='math'; // alternates
+
+function openSecretPlanet(){
+  if(snakeUnlocked){showGameScreen();return;}
+  startChallenge('unlock');
+}
+function startChallenge(mode){
+  ch.active=true;ch.mode=mode;ch.correct=0;ch.needed=5;ch.answered=false;
+  ch.challengeType=nextChallengeType;
+  document.getElementById('ch-title').textContent=ch.challengeType==='math'?'🔢 LØS MATTEOPPGAVENE!':'📝 STAV ORDENE RIKTIG!';
+  document.getElementById('ch-sub').textContent=`FÅ ${ch.needed} RIKTIGE FOR Å ${mode==='unlock'?'LÅSE OPP SPILLET':'FORTSETTE Å SPILLE'}!`;
+  updateChProgress();
+  document.getElementById('challenge-overlay').classList.add('show');
+  nextChallenge();
+}
+function updateChProgress(){
+  document.getElementById('ch-progress').innerHTML=[...Array(ch.needed)].map((_,i)=>
+    `<div class="ch-dot ${i<ch.correct?'done':i===ch.correct?'active':''}"></div>`).join('');
+}
+function nextChallenge(){
+  ch.answered=false;
+  if(ch.challengeType==='math') showMathChallenge();
+  else showSpellChallenge();
+}
+function showMathChallenge(){
+  const q=genMathQ();
+  const correct=q.ans;const opts=new Set([correct]);
+  while(opts.size<4){const v=correct+Math.floor(Math.random()*7)-3;if(v>=0&&v<=20&&v!==correct)opts.add(v);}
+  const arr=[...opts].sort(()=>Math.random()-.5);
+  document.getElementById('ch-content').innerHTML=`
+    <div class="ch-q">${q.q}</div>
+    <div class="ch-opts">${arr.map(v=>`<button class="ch-opt" data-v="${v}" data-ans="${correct}">${v}</button>`).join('')}</div>
+    <div class="ch-fb" id="ch-fb"></div>`;
+  document.querySelectorAll('.ch-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(ch.answered)return;ch.answered=true;
+      const v=+btn.dataset.v,ans=+btn.dataset.ans;
+      document.querySelectorAll('.ch-opt').forEach(b=>{b.disabled=true;if(+b.dataset.v===ans)b.classList.add('correct');else if(b===btn)b.classList.add('wrong');});
+      const fb=document.getElementById('ch-fb');
+      if(v===ans){ch.correct++;fb.textContent='⭐ RIKTIG!';fb.className='ch-fb ok';}
+      else{fb.textContent=`❌ SVARET VAR ${ans}`;fb.className='ch-fb no';}
+      updateChProgress();
+      if(ch.correct>=ch.needed) setTimeout(challengePassed,900);
+      else setTimeout(nextChallenge,1100);
+    });
+  });
+}
+function showSpellChallenge(){
+  const w=SPELL_WORDS[Math.floor(Math.random()*SPELL_WORDS.length)];
+  // Show scrambled
+  const scrambled=w.word.split('').sort(()=>Math.random()-.5).join('');
+  document.getElementById('ch-content').innerHTML=`
+    <div class="spell-word">${scrambled}</div>
+    <div class="spell-hint">HINT: ${w.hint}</div>
+    <input class="spell-input" id="spell-inp" maxlength="${w.word.length+2}" placeholder="SKRIV SVARET..." autocomplete="off" spellcheck="false">
+    <div class="ch-fb" id="ch-fb"></div>
+    <button class="big-btn btn-yellow" style="margin:0 auto" onclick="checkSpell('${w.word}')">SJEKK SVARET ✓</button>`;
+  document.getElementById('spell-inp').focus();
+  document.getElementById('spell-inp').addEventListener('keydown',e=>{if(e.key==='Enter')checkSpell(w.word);});
+}
+function checkSpell(correct){
+  if(ch.answered)return;
+  const inp=document.getElementById('spell-inp');
+  const val=inp.value.toUpperCase().trim();
+  ch.answered=true;
+  const fb=document.getElementById('ch-fb');
+  if(val===correct){ch.correct++;fb.textContent=`⭐ RIKTIG! "${correct}"`;fb.className='ch-fb ok';}
+  else{fb.textContent=`❌ RIKTIG STAVEMÅTE: ${correct}`;fb.className='ch-fb no';}
+  inp.disabled=true;
+  updateChProgress();
+  if(ch.correct>=ch.needed) setTimeout(challengePassed,1000);
+  else setTimeout(nextChallenge,1400);
+}
+window.checkSpell=checkSpell;
+function challengePassed(){
+  document.getElementById('challenge-overlay').classList.remove('show');
+  // Toggle next type
+  nextChallengeType=nextChallengeType==='math'?'spell':'math';
+  if(ch.mode==='unlock'){snakeUnlocked=true;showGameScreen();}
+  else{resumeSnake();}
+}
+function showGameScreen(){
+  showScreen('game-screen');
+  snakeInit();
+  setTimeout(()=>robotSay('SPIS MATEN OG UNNGÅ VEGGENE! 🐍','game'),600);
+}
+
+// ══════════════════════════════════════
+// 🐍 SNAKE GAME
+// ══════════════════════════════════════
+const COLS=17,ROWS=17,CS=20;
+let sn={body:[],dir:{x:1,y:0},nd:{x:1,y:0},food:{x:8,y:8},running:false,iv:null,score:0,best:0,timeExpired:false};
+
+function snakeInit(){
+  const c=document.getElementById('snake-canvas');
+  c.width=COLS*CS;c.height=ROWS*CS;
+  gameSecondsLeft=300;
+  clearInterval(gameTimer);
+  updateTimerDisplay();
+  document.getElementById('sn-msg').textContent='KLAR TIL Å SPILLE? 🐍';
+  document.getElementById('sn-sub').textContent='BRUK PILTASTENE ELLER KNAPPENE UNDER';
+  document.getElementById('sn-start').style.display='inline-flex';
+  sn.running=false;sn.timeExpired=false;
+  snDraw();
+}
+function snStart(){
+  sn.body=[{x:8,y:8},{x:7,y:8},{x:6,y:8}];
+  sn.dir={x:1,y:0};sn.nd={x:1,y:0};
+  sn.score=0;sn.running=true;sn.timeExpired=false;
+  placeFood();
+  document.getElementById('sn-score').textContent=0;
+  document.getElementById('sn-msg').textContent='';
+  document.getElementById('sn-sub').textContent='';
+  document.getElementById('sn-start').style.display='none';
+  clearInterval(sn.iv);sn.iv=setInterval(snTick,160);
+  // Start/resume timer
+  clearInterval(gameTimer);
+  gameTimer=setInterval(()=>{
+    gameSecondsLeft--;updateTimerDisplay();
+    if(gameSecondsLeft<=30&&gameSecondsLeft>0&&gameSecondsLeft%10===0)
+      robotSay(`⏰ ${gameSecondsLeft} SEKUNDER IGJEN!`);
+    if(gameSecondsLeft<=0){sn.timeExpired=true;clearInterval(gameTimer);}
+  },1000);
+}
+function resumeSnake(){
+  gameSecondsLeft=300;clearInterval(gameTimer);updateTimerDisplay();
+  document.getElementById('sn-start').textContent='FORTSETT 🐍';
+  document.getElementById('sn-start').style.display='inline-flex';
+  document.getElementById('sn-msg').textContent='BRA JOBBET MED OPPGAVEN!';
+  document.getElementById('sn-sub').textContent='KLIKK FOR Å FORTSETTE!';
+  robotSay('BRA! DU LØSTE OPPGAVEN — NÅ KAN DU SPILLE IGJEN! 🐍');
+}
+function snStop(){clearInterval(sn.iv);clearInterval(gameTimer);sn.running=false;}
+function updateTimerDisplay(){
+  const m=Math.floor(gameSecondsLeft/60),s=gameSecondsLeft%60;
+  const el=document.getElementById('sn-timer');
+  el.textContent=`TID: ${m}:${s.toString().padStart(2,'0')}`;
+  el.style.color=gameSecondsLeft<=30?'#f87171':'var(--robot)';
+}
+function snDir(dx,dy){
+  if(!sn.running)return;
+  if(dx!==0&&sn.dir.x!==0)return;
+  if(dy!==0&&sn.dir.y!==0)return;
+  sn.nd={x:dx,y:dy};
+}
+function snTick(){
+  sn.dir=sn.nd;
+  const h={x:sn.body[0].x+sn.dir.x,y:sn.body[0].y+sn.dir.y};
+  if(h.x<0||h.x>=COLS||h.y<0||h.y>=ROWS||sn.body.some(b=>b.x===h.x&&b.y===h.y)){
+    snGameOver();return;
+  }
+  sn.body.unshift(h);
+  if(h.x===sn.food.x&&h.y===sn.food.y){
+    sn.score+=10;document.getElementById('sn-score').textContent=sn.score;
+    if(sn.score>sn.best){sn.best=sn.score;document.getElementById('sn-best').textContent=sn.best;}
+    placeFood();
+    if(sn.score%50===0){clearInterval(sn.iv);sn.iv=setInterval(snTick,Math.max(80,160-sn.score/5));}
+  } else sn.body.pop();
+  snDraw();
+}
+function placeFood(){let f;do{f={x:Math.floor(Math.random()*COLS),y:Math.floor(Math.random()*ROWS)};}while(sn.body.some(b=>b.x===f.x&&b.y===f.y));sn.food=f;}
+function snGameOver(){
+  clearInterval(sn.iv);clearInterval(gameTimer);sn.running=false;
+  snDraw();
+  if(sn.timeExpired){
+    // Time ran out — new challenge
+    document.getElementById('sn-msg').textContent=`GAME OVER! POENG: ${sn.score}`;
+    document.getElementById('sn-sub').textContent='⏰ TIDA ER UTE — LØSE EN OPPGAVE FOR Å FORTSETTE!';
+    document.getElementById('sn-start').textContent='LØS OPPGAVE 🧠';
+    document.getElementById('sn-start').onclick=()=>startChallenge('resume');
+    document.getElementById('sn-start').style.display='inline-flex';
+    robotSay('TIDA ER UTE! LØS EN OPPGAVE SÅ FÅR DU SPILLE IGJEN! 🧠');
+  } else {
+    document.getElementById('sn-msg').textContent=`GAME OVER! POENG: ${sn.score}`;
+    document.getElementById('sn-sub').textContent=sn.score>=sn.best&&sn.score>0?'🏆 NY REKORD!':'PRØV IGJEN!';
+    document.getElementById('sn-start').textContent='SPILL IGJEN 🐍';
+    document.getElementById('sn-start').onclick=snStart;
+    document.getElementById('sn-start').style.display='inline-flex';
+    robotSay(sn.score>40?'UTROLIG! DU ER SLANGE-MESTER! 🐍':'BRA FORSØK! PRØV IGJEN FOR REKORD!');
+    // If time expired mid-game, start challenge at next death
+    if(sn.timeExpired) setTimeout(()=>startChallenge('resume'),1500);
+  }
+}
+function snDraw(){
+  const c=document.getElementById('snake-canvas');const ctx=c.getContext('2d');
+  ctx.fillStyle='#050f08';ctx.fillRect(0,0,c.width,c.height);
+  ctx.strokeStyle='rgba(100,255,150,.04)';ctx.lineWidth=.5;
+  for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(x*CS,0);ctx.lineTo(x*CS,c.height);ctx.stroke();}
+  for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(0,y*CS);ctx.lineTo(c.width,y*CS);ctx.stroke();}
+  // food
+  ctx.fillStyle='#ff6b6b';ctx.beginPath();ctx.arc(sn.food.x*CS+CS/2,sn.food.y*CS+CS/2,CS/2-2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,150,150,.5)';ctx.beginPath();ctx.arc(sn.food.x*CS+CS/2-2,sn.food.y*CS+CS/2-2,3,0,Math.PI*2);ctx.fill();
+  // snake
+  sn.body.forEach((seg,i)=>{
+    const t=i/Math.max(sn.body.length,1);
+    ctx.fillStyle=`hsl(${145-t*25},${78-t*20}%,${52-t*18}%)`;
+    const pad=i===0?1:2;
+    ctx.beginPath();ctx.roundRect(seg.x*CS+pad,seg.y*CS+pad,CS-pad*2,CS-pad*2,i===0?6:3);ctx.fill();
+    if(i===0){ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(seg.x*CS+5,seg.y*CS+5,2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(seg.x*CS+CS-5,seg.y*CS+5,2,0,Math.PI*2);ctx.fill();}
+  });
+}
+
+// KEYBOARD
+document.addEventListener('keydown',e=>{
+  const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+  if(m[e.key]){e.preventDefault();snDir(...m[e.key]);}
+});
+
+
+
+// ══ SERVICE WORKER (offline støtte) ══
+if('serviceWorker' in navigator){
+  const swCode=`
+self.addEventListener('install',e=>self.skipWaiting());
+self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+self.addEventListener('fetch',e=>{
+  if(e.request.url.includes('fonts.googleapis')||e.request.url.includes('fonts.gstatic')){
+    e.respondWith(caches.open('galaksen-v1').then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{c.put(e.request,res.clone());return res;}))));
+  }
+});
+  `;
+  const blob=new Blob([swCode],{type:'application/javascript'});
+  const url=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).catch(()=>{});
+}
+
+// ══ INIT ══
+buildGalaxy();
+setTimeout(()=>robotSay('HEI! JEG ER COSMO! TRYKK PÅ EN PLANET FOR Å UTFORSKE! 🚀'),900);
+let _rt;window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(()=>{if(document.querySelector('#galaxy.active'))buildGalaxy();},220);});
+</script>
+</body>
+</html>
